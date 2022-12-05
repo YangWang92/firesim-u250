@@ -26,5 +26,5 @@
 	path = sim/firesim-lib/src/main/cc/lib/elfutils
 	url = git://sourceware.org/git/elfutils.git
 [submodule "sim/firesim-lib/src/main/cc/lib/libdwarf"]
-	path = sim/firesim-lib/src/main/cc/lib/libdwarf
-	url = git://git.code.sf.net/p/libdwarf/code
+    path = sim/firesim-lib/src/main/cc/lib/libdwarf
+    url = https://github.com/davea42/libdwarf-code
