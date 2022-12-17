@@ -74,11 +74,14 @@ class BuildConfigFile:
         build_recipes = dict()
         for section_name, section_dict in build_recipes_config_file.items():
             if section_name in builds_to_run_list:
-                build_recipes[section_name] = BuildConfig(
-                    section_name,
-                    section_dict,
-                    self,
-                    launch_time)
+                try:
+                    build_recipes[section_name] = BuildConfig(
+                        section_name,
+                        section_dict,
+                        self,
+                        launch_time)
+                except Exception as e:
+                    raise Exception(f"Error constructing build recipe '{section_name}'") from e
 
         self.hwdb = RuntimeHWDB(args.hwdbconfigfile)
 
@@ -149,7 +152,7 @@ class BuildConfigFile:
         for build in self.builds_list:
             if self.build_farm.get_build_host_ip(build) == nodeip:
                 return build
-        assert False, "Unable to find build config associated with {nodeip}"
+        assert False, f"Unable to find build config associated with {nodeip}"
 
     def __repr__(self) -> str:
         return f"< {type(self)}(file={self.args.buildconfigfile!r}, recipes={self.args.buildrecipesconfigfile!r}, build_farm={self.build_farm!r}) @{id(self)} >"

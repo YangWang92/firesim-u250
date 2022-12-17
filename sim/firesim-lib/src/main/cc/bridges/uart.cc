@@ -7,7 +7,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -39,9 +42,7 @@ void sighand(int s) {
 }
 #endif
 
-uart_t::uart_t(simif_t *sim, UARTBRIDGEMODULE_struct *mmio_addrs, int uartno)
-    : bridge_driver_t(sim) {
-  this->mmio_addrs = mmio_addrs;
+uart_fd_handler::uart_fd_handler(int uartno) {
   this->loggingfd = 0; // unused
 
   if (uartno == 0) {
@@ -88,26 +89,58 @@ uart_t::uart_t(simif_t *sim, UARTBRIDGEMODULE_struct *mmio_addrs, int uartno)
   fcntl(inputfd, F_SETFL, fcntl(inputfd, F_GETFL) | O_NONBLOCK);
 }
 
-uart_t::~uart_t() {
-  free(this->mmio_addrs);
-  close(this->loggingfd);
+uart_fd_handler::~uart_fd_handler() { close(this->loggingfd); }
+
+std::optional<char> uart_fd_handler::get() {
+  char inp;
+  int readamt;
+  if (specialchar) {
+    // send special character (e.g. ctrl-c)
+    // for stdin handling
+    //
+    // PTY should never trigger this
+    inp = specialchar;
+    specialchar = 0;
+    readamt = 1;
+  } else {
+    // else check if we have input
+    readamt = ::read(inputfd, &inp, 1);
+  }
+
+  if (readamt <= 0)
+    return std::nullopt;
+  return inp;
 }
+
+void uart_fd_handler::put(char data) {
+  ::write(outputfd, &data, 1);
+  if (loggingfd) {
+    ::write(loggingfd, &data, 1);
+  }
+}
+
+uart_t::uart_t(simif_t *sim,
+               const UARTBRIDGEMODULE_struct &mmio_addrs,
+               int uartno)
+    : uart_t(sim, mmio_addrs, std::make_unique<uart_fd_handler>(uartno)) {}
+
+uart_t::~uart_t() {}
 
 void uart_t::send() {
   if (data.in.fire()) {
-    write(this->mmio_addrs->in_bits, data.in.bits);
-    write(this->mmio_addrs->in_valid, data.in.valid);
+    write(mmio_addrs.in_bits, data.in.bits);
+    write(mmio_addrs.in_valid, data.in.valid);
   }
   if (data.out.fire()) {
-    write(this->mmio_addrs->out_ready, data.out.ready);
+    write(mmio_addrs.out_ready, data.out.ready);
   }
 }
 
 void uart_t::recv() {
-  data.in.ready = read(this->mmio_addrs->in_ready);
-  data.out.valid = read(this->mmio_addrs->out_valid);
+  data.in.ready = read(mmio_addrs.in_ready);
+  data.out.valid = read(mmio_addrs.out_valid);
   if (data.out.valid) {
-    data.out.bits = read(this->mmio_addrs->out_bits);
+    data.out.bits = read(mmio_addrs.out_bits);
   }
 }
 
@@ -118,32 +151,14 @@ void uart_t::tick() {
     this->recv();
 
     if (data.in.ready) {
-      char inp;
-      int readamt;
-      if (specialchar) {
-        // send special character (e.g. ctrl-c)
-        // for stdin handling
-        //
-        // PTY should never trigger this
-        inp = specialchar;
-        specialchar = 0;
-        readamt = 1;
-      } else {
-        // else check if we have input
-        readamt = ::read(inputfd, &inp, 1);
-      }
-
-      if (readamt > 0) {
-        data.in.bits = inp;
+      if (auto bits = handler->get()) {
+        data.in.bits = *bits;
         data.in.valid = true;
       }
     }
 
     if (data.out.fire()) {
-      ::write(outputfd, &data.out.bits, 1);
-      if (loggingfd) {
-        ::write(loggingfd, &data.out.bits, 1);
-      }
+      handler->put(data.out.bits);
     }
 
     this->send();

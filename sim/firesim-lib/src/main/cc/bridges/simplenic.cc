@@ -49,19 +49,16 @@ static void simplify_frac(int n, int d, int *nn, int *dd) {
   }
 
 simplenic_t::simplenic_t(simif_t *sim,
-                         std::vector<std::string> &args,
-                         SIMPLENICBRIDGEMODULE_struct *mmio_addrs,
+                         const std::vector<std::string> &args,
+                         const SIMPLENICBRIDGEMODULE_struct &mmio_addrs,
                          int simplenicno,
                          const int stream_to_cpu_idx,
                          const int stream_to_cpu_depth,
                          const int stream_from_cpu_idx,
                          const int stream_from_cpu_depth)
-    : bridge_driver_t(sim), stream_to_cpu_idx(stream_to_cpu_idx),
-      stream_to_cpu_depth(stream_to_cpu_depth),
-      stream_from_cpu_idx(stream_from_cpu_idx),
-      stream_from_cpu_depth(stream_from_cpu_depth) {
-  this->mmio_addrs = mmio_addrs;
-
+    : bridge_driver_t(sim), mmio_addrs(mmio_addrs),
+      stream_to_cpu_idx(stream_to_cpu_idx),
+      stream_from_cpu_idx(stream_from_cpu_idx) {
   const char *niclogfile = NULL;
   const char *shmemportname = NULL;
   int netbw = MAX_BANDWIDTH, netburst = 8;
@@ -91,11 +88,10 @@ simplenic_t::simplenic_t(simif_t *sim,
       this->loopback = true;
     }
     if (arg.find(macaddr_arg) == 0) {
-      uint8_t mac_bytes[6];
       int mac_octets[6];
       char *macstring = NULL;
       macstring = const_cast<char *>(arg.c_str()) + macaddr_arg.length();
-      char *trailingjunk;
+      char trailingjunk;
 
       // convert mac address from string to 48 bit int
       if (6 == sscanf(macstring,
@@ -106,7 +102,7 @@ simplenic_t::simplenic_t(simif_t *sim,
                       &mac_octets[3],
                       &mac_octets[4],
                       &mac_octets[5],
-                      trailingjunk)) {
+                      &trailingjunk)) {
 
         for (int i = 0; i < 6; i++) {
           mac_lendian |= (((uint64_t)(uint8_t)mac_octets[i]) << (8 * i));
@@ -223,18 +219,17 @@ simplenic_t::~simplenic_t() {
       munmap(pcis_write_bufs[j], BUFBYTES + EXTRABYTES);
     }
   }
-  free(this->mmio_addrs);
 }
 
 #define ceil_div(n, d) (((n)-1) / (d) + 1)
 
 void simplenic_t::init() {
-  write(mmio_addrs->macaddr_upper, (mac_lendian >> 32) & 0xFFFF);
-  write(mmio_addrs->macaddr_lower, mac_lendian & 0xFFFFFFFF);
-  write(mmio_addrs->rlimit_settings,
+  write(mmio_addrs.macaddr_upper, (mac_lendian >> 32) & 0xFFFF);
+  write(mmio_addrs.macaddr_lower, mac_lendian & 0xFFFFFFFF);
+  write(mmio_addrs.rlimit_settings,
         (rlimit_inc << 16) | ((rlimit_period - 1) << 8) | rlimit_size);
-  write(mmio_addrs->pause_threshold, pause_threshold);
-  write(mmio_addrs->pause_times,
+  write(mmio_addrs.pause_threshold, pause_threshold);
+  write(mmio_addrs.pause_times,
         (pause_refresh << 16) | (pause_quanta & 0xffff));
 
   // In lieu of reading "count", check that the stream is empty by doing a pull.
@@ -262,7 +257,7 @@ void simplenic_t::init() {
 
   if (token_bytes_produced != token_bytes_to_send) {
     printf("FAIL. Could not enqueue big tokens to support the desired sim "
-           "latency on init. Required %d, enqueued %d\n",
+           "latency on init. Required %d, enqueued %lu\n",
            SIMLATENCY_BT,
            token_bytes_produced / BUFWIDTH);
     exit(1);
@@ -273,8 +268,6 @@ void simplenic_t::init() {
 //#define TOKENVERIFY
 
 void simplenic_t::tick() {
-  struct timespec tstart, tend;
-
   //#define DEBUG_NIC_PRINT
 
   while (true) { // break when we don't have 5k tokens

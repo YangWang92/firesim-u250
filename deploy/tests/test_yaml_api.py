@@ -246,6 +246,9 @@ class TestConfigBuildAPI:
                 TARGET_CONFIG: Config
                 deploy_triplet: null
                 PLATFORM_CONFIG: Config
+                platform_config_args:
+                    fpga_frequency: 123
+                    build_strategy: TIMING
                 post_build_hook: null
                 bit_builder_recipe: bit-builder-recipes/f1.yaml
             """))
@@ -263,7 +266,7 @@ class TestConfigBuildAPI:
                                     ])
     def test_config_existence(self, task_mocker, build_yamls, firesim_parse_args, task_name, opt, non_existent_file):
         # TODO: Remove after deprecation
-        if task_name == "buildafi":
+        if task_name == "buildbitstream":
             task_name = "buildbitstream"
 
         m = task_mocker.patch(task_name, wrap_config=True)

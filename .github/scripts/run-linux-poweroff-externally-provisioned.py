@@ -4,11 +4,11 @@ import sys
 import time
 from pathlib import Path
 
-from fabric.api import *
+from fabric.api import prefix, settings, run, execute # type: ignore
 
 from common import manager_fsim_dir, set_fabric_firesim_pem
-from ci_variables import ci_workdir, ci_workflow_run_id
-sys.path.append(ci_workdir + "/deploy")
+from ci_variables import ci_env
+sys.path.append(ci_env['GITHUB_WORKSPACE'] + "/deploy")
 from awstools.awstools import get_instances_with_filter, get_private_ips_for_instances
 from util.filelineswap import file_line_swap
 
@@ -27,7 +27,7 @@ def run_linux_poweroff_externally_provisioned():
             workload_full = workload_path + "/" + workload
             log_tail_length = 100
             script_name = Path(__file__).stem
-            rf_prefix = f"{ci_workflow_run_id}-{script_name}"
+            rf_prefix = f"{ci_env['GITHUB_RUN_ID']}-{script_name}"
 
             # unique tag based on the ci workflow and filename is needed to ensure
             # run farm is unique to each linux-poweroff test
@@ -86,7 +86,7 @@ def run_linux_poweroff_externally_provisioned():
                 else:
                     print(f"Workload {workload} successful.")
 
-        run_w_timeout(f"{manager_fsim_dir}/deploy/workloads", "linux-poweroff-all-no-nic.yaml", "30m")
+        run_w_timeout(f"{manager_fsim_dir}/deploy/workloads", "linux-poweroff-all-no-nic.yaml", "45m")
 
 if __name__ == "__main__":
     set_fabric_firesim_pem()

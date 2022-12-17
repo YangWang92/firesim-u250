@@ -13,7 +13,6 @@ import midas.core.HostMemChannelKey
 import midas.widgets.{AXI4Printf, CtrlNastiKey}
 import midas.stage.GoldenGateOutputFileAnnotation
 import midas.platform.xilinx._
-import midas.targetutils.xdc._
 
 object VitisConstants {
   // Configurable through v++
@@ -21,6 +20,9 @@ object VitisConstants {
 
   // This is wider than the addresses used in FPGATop
   val axi4MAddressBits = 64
+
+  /** The hardcoded TCL variable name used to specify the simulator's frequency */
+  val frequencyVariableName = "frequency"
 }
 
 class VitisShim(implicit p: Parameters) extends PlatformShim {
@@ -39,7 +41,13 @@ class VitisShim(implicit p: Parameters) extends PlatformShim {
     val ap_rst = (!ap_rst_n.asBool)
 
     // Setup Internal Clocking
-    val firesimMMCM = Module(new MMCM(VitisConstants.kernelDefaultFreqMHz, p(DesiredHostFrequency), "firesim_clocking"))
+    val firesimMMCM = Module(
+      new MMCM(
+        FrequencySpec.Static(VitisConstants.kernelDefaultFreqMHz),
+        FrequencySpec.TCLVariable(VitisConstants.frequencyVariableName),
+        "firesim_clocking",
+      )
+    )
     firesimMMCM.io.clk_in1 := ap_clk
     firesimMMCM.io.reset   := ap_rst.asAsyncReset
 
@@ -100,9 +108,5 @@ class VitisShim(implicit p: Parameters) extends PlatformShim {
       fileSuffix = ".defines.vh",
     )
     GoldenGateOutputFileAnnotation.annotateFromChisel(s"# Currenty unused", ".env.tcl")
-    // We don't need to provide paths because
-    // 1) The Shim module is the top-level of the kernel
-    // 2) Implementation constraints are scoped to the kernel level in our vitis flow
-    SpecifyXDCCircuitPaths(None, None)
   }
 }

@@ -11,35 +11,35 @@
 
 #include "bridges/synthesized_prints.h"
 
-class fasedtests_top_t : virtual public simif_peek_poke_t,
-                         public systematic_scheduler_t {
+class fasedtests_top_t : public simif_peek_poke_t,
+                         public systematic_scheduler_t,
+                         public simulation_t {
 public:
-  fasedtests_top_t(int argc, char **argv);
+  fasedtests_top_t(const std::vector<std::string> &args, simif_t *simif);
   ~fasedtests_top_t() {}
-  int run();
+
+  void simulation_init();
+  void simulation_finish();
+  int simulation_run();
 
 protected:
-  void add_bridge_driver(bridge_driver_t *bridge_driver) {
-    bridges.push_back(std::unique_ptr<bridge_driver_t>(bridge_driver));
+  void add_bridge_driver(bridge_driver_t *bridge) {
+    bridges.emplace_back(bridge);
+  }
+  void add_bridge_driver(FpgaModel *bridge) {
+    fpga_models.emplace_back(bridge);
   }
 
 private:
   // Memory mapped bridges bound to software models
   std::vector<std::unique_ptr<bridge_driver_t>> bridges;
   // FPGA-hosted models with programmable registers & instrumentation
-  std::vector<FpgaModel *> fpga_models;
-
-#ifdef PRINTBRIDGEMODULE_struct_guard
-  synthesized_prints_t *print_bridge;
-#endif
+  std::vector<std::unique_ptr<FpgaModel>> fpga_models;
 
   // profile interval: # of cycles to advance before profiling instrumentation
   // registers in models
   uint64_t profile_interval = -1;
   uint64_t profile_models();
-
-  // If set, will write all zeros to fpga dram before commencing simulation
-  bool do_zero_out_dram = false;
 
   // Returns true if any bridge has signaled for simulation termination
   bool simulation_complete();

@@ -15,7 +15,6 @@ class BaseMidasExamplesConfig extends Config(
   new WithDefaultMemModel ++
   new WithWiringTransform ++
   new Config((site, here, up) => {
-    case DesiredHostFrequency => 75
     case SynthAsserts => true
     case GenerateMultiCycleRamModels => true
     case EnableModelMultiThreading => true
@@ -25,7 +24,6 @@ class BaseMidasExamplesConfig extends Config(
   })
 )
 class DefaultF1Config extends Config(
-  new firesim.configs.WithEC2F1Artefacts ++
   new BaseMidasExamplesConfig ++
   new midas.F1Config
 )

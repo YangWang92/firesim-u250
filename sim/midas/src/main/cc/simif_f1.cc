@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-simif_f1_t::simif_f1_t(int argc, char **argv) {
+simif_f1_t::simif_f1_t(const std::vector<std::string> &args) : simif_t(args) {
 #ifdef SIMULATION_XSIM
   mkfifo(driver_to_xsim, 0666);
   fprintf(stderr, "opening driver to xsim\n");
@@ -15,7 +15,7 @@ simif_f1_t::simif_f1_t(int argc, char **argv) {
   xsim_to_driver_fd = open(xsim_to_driver, O_RDONLY);
 #else
   slot_id = -1;
-  std::vector<std::string> args(argv + 1, argv + argc);
+
   for (auto &arg : args) {
     if (arg.find("+slotid=") == 0) {
       slot_id = atoi((arg.c_str()) + 8);
@@ -267,4 +267,9 @@ uint32_t simif_f1_t::is_write_ready() {
   check_rc(rc, NULL);
   return value & 0xFFFFFFFF;
 #endif
+}
+
+int main(int argc, char **argv) {
+  std::vector<std::string> args(argv + 1, argv + argc);
+  return simif_f1_t(args).run();
 }

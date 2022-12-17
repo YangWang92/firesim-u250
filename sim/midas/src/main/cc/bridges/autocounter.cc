@@ -2,6 +2,7 @@
 
 #include "autocounter.h"
 
+#include <cinttypes>
 #include <iostream>
 #include <limits.h>
 #include <regex>
@@ -16,8 +17,8 @@
 #include <sys/mman.h>
 
 autocounter_t::autocounter_t(simif_t *sim,
-                             std::vector<std::string> &args,
-                             AUTOCOUNTERBRIDGEMODULE_struct *mmio_addrs,
+                             const std::vector<std::string> &args,
+                             const AUTOCOUNTERBRIDGEMODULE_struct &mmio_addrs,
                              AddressMap addr_map,
                              const uint32_t event_count,
                              const char *const *event_types,
@@ -87,14 +88,14 @@ See the AutoCounter documentation on Reset And Timing Considerations for discuss
   emit_autocounter_header();
 }
 
-autocounter_t::~autocounter_t() { free(this->mmio_addrs); }
+autocounter_t::~autocounter_t() {}
 
 void autocounter_t::init() {
   // Decrement the readrate by one to simplify the HW a little bit
   write(addr_map.w_registers.at("readrate_low"),
         (readrate - 1) & ((1ULL << 32) - 1));
   write(addr_map.w_registers.at("readrate_high"), this->readrate >> 32);
-  write(mmio_addrs->init_done, 1);
+  write(mmio_addrs.init_done, 1);
 }
 
 std::string
