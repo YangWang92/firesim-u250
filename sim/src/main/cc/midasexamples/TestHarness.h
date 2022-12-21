@@ -1,6 +1,8 @@
 #ifndef MIDAEXAMPLES_TESTHARNESS_H
 #define MIDAEXAMPLES_TESTHARNESS_H
 
+#include <random>
+
 #include "bridges/autocounter.h"
 #include "bridges/bridge_driver.h"
 #include "bridges/plusargs.h"
@@ -35,24 +37,12 @@ public:
     abort();                                                                   \
   }
 
-#ifdef AUTOCOUNTERBRIDGEMODULE_struct_guard
   BRIDGE_HANDLER(autocounter_t, "Auto Counter bridge");
-#endif
-#ifdef ASSERTBRIDGEMODULE_struct_guard
   BRIDGE_HANDLER(synthesized_assertions_t, "Synthesized Assert bridge");
-#endif
-#ifdef PRINTBRIDGEMODULE_struct_guard
   BRIDGE_HANDLER(synthesized_prints_t, "Synthesized Print bridge");
-#endif
-#ifdef RESETPULSEBRIDGEMODULE_struct_guard
   BRIDGE_HANDLER(reset_pulse_t, "Reset Pulse bridge");
-#endif
-#ifdef PLUSARGSBRIDGEMODULE_struct_guard
   BRIDGE_HANDLER(plusargs_t, "PlusArgs bridge");
-#endif
-#ifdef TERMINATIONBRIDGEMODULE_struct_guard
   BRIDGE_HANDLER(termination_t, "Termination bridge");
-#endif
 
   /// Test entry point to override.
   virtual void run_test() = 0;
@@ -65,6 +55,10 @@ public:
     run_test();
     return teardown();
   }
+
+protected:
+  /// Random number generator for tests, using a fixed default seed.
+  std::mt19937_64 random;
 };
 
 #define TEST_MAIN(CLASS_NAME)                                                  \
