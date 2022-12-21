@@ -25,16 +25,20 @@ fi
 set -x
 tmp=$(mktemp -d)
 guestmount -a "${IMAGE_IMG}" -m /dev/sda "${tmp}"
-if [ -e "${tmp}/output" ]; then
-	cp -vr "${tmp}/output" "${RESULT_DIR}/"
-fi
+
+(
+	cd "${tmp}"
+	[ -d "output" ] && cp -var "output" "${RESULT_DIR}"/
+	[ -d "opt" ] && find "opt" -type d -name "output" -exec cp -var --parents "{}" "${RESULT_DIR}"/ \;
+)
+
 guestunmount "${tmp}"
 
 rm -fR "${tmp}"
 rm -f "${IMAGE_IMG}"
 rm -f "${IMAGE_BIN}"
 
-gzip -v "${RUN_DIR}/"*.csv
+gzip -v "${RUN_DIR}"/*.csv
 
 set +x
 exit 0
